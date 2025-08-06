@@ -1,0 +1,58 @@
+# Fichiers de build
+build/
+bin/
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# Fichiers CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Fichiers de debug
+*.gdb
+*.pdb
+core
+vgcore.*
+
+# Fichiers de cache système
+/tmp/v8_code_cache
+/dev/shm/ipc_router_shared
+
+# IDE et éditeurs
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/c_cpp_properties.json
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Fichiers de backup
+*.bak
+*.backup
+*.tmp
+
+# Logs
+*.log
+
+# Fichiers système
+.directory
+.Trash-*
+
+# Archives
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+*.7z

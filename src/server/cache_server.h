@@ -1,0 +1,39 @@
+#ifndef CACHE_SERVER_H
+#define CACHE_SERVER_H
+
+
+#include "common.h"
+#include "router.h"
+
+class IPCServer
+{
+private:
+    IPCRouter router;
+    SharedData* shared_data;
+    bool running;
+
+    // Fonctions de gestion des requêtes
+    void handle_create_user(const CreateUserRequest& request);
+    void handle_get_user(const GetUserRequest& request);
+    void handle_delete_user(const DeleteUserRequest& request);
+    void handle_add_function_ir(const char* data, size_t size);
+    void handle_get_function_ir(const char* data, size_t size);
+
+
+    // Initialisation des routes
+    void initialize_routes();
+
+    // Gestion de la mémoire partagée
+    SharedData* create_shared_memory();
+
+public:
+    IPCServer();
+    ~IPCServer();
+
+    bool initialize();
+    void run();
+    void stop();
+};
+
+
+#endif // CACHE_SERVER_H
