@@ -48,6 +48,23 @@ int main()
     uint8_t small_bits[] = { 0xFF };
     client.add_function_ir("SMALL_FUNCTION_HASH", small_bits, 8);
 
+    // Test de récupération d'IR
+    std::vector<uint8_t> ir_bits;
+
+    printf("Récupération IR pour fonction existante...\n");
+    if (client.get_function_ir("EXISTING_FUNCTION", ir_bits)) {
+        printf("IR récupéré avec succès! Premiers octets: ");
+        for (size_t i = 0; i < std::min(size_t(8), ir_bits.size()); i++) {
+            printf("%02X ", ir_bits[i]);
+        }
+        printf("\n");
+    }
+
+    printf("\nRécupération IR pour fonction inexistante...\n");
+    if (!client.get_function_ir("NONEXISTENT_FUNCTION", ir_bits)) {
+        printf("Fonction non trouvée (comme attendu)\n");
+    }
+
     printf("\nToutes les requêtes ont été envoyées!\n");
 
     return 0;

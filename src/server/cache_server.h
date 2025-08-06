@@ -17,8 +17,10 @@ private:
     void handle_get_user(const GetUserRequest& request);
     void handle_delete_user(const DeleteUserRequest& request);
     void handle_add_function_ir(const char* data, size_t size);
-    void handle_get_function_ir(const char* data, size_t size);
+    void handle_get_function_ir(const GetFunctionIRRequest& request, uint32_t message_id);
 
+    // Méthode pour envoyer une réponse
+    bool send_response(uint32_t message_id, const void* response_data, size_t response_size);
 
     // Initialisation des routes
     void initialize_routes();

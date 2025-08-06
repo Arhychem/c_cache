@@ -18,14 +18,14 @@
 #define SHARED_MEM_NAME "/ipc_router_shared"
 
 // Structure de données partagée
-struct SharedData {
+struct SharedData
+{
     sem_t mutex;           // Sémaphore pour l'accès exclusif
     sem_t data_ready;      // Sémaphore pour signaler qu'un message est prêt
     sem_t response_ready;  // Sémaphore pour signaler qu'une réponse est prête
 
     // Buffer pour les messages
     char message[MAX_MESSAGE_SIZE];
-
     // Métadonnées du message actuel
     bool has_message;      // Indique si un message est présent
     size_t message_size;   // Taille réelle du message
@@ -34,10 +34,15 @@ struct SharedData {
     char response[MAX_MESSAGE_SIZE];
     size_t response_size;
     bool has_response;
+
+     // ID de message pour associer requête/réponse
+    uint32_t current_message_id;
+    uint32_t response_message_id;
 };
 
 // Structure de base pour tous les messages
-struct IPCMessage {
+struct IPCMessage
+{
     uint32_t message_id;     // ID unique du type de message
     uint32_t route_hash;     // Hash de la route
     uint32_t payload_size;   // Taille des données utiles
@@ -45,38 +50,51 @@ struct IPCMessage {
 };
 
 // Exemples de structures de requêtes
-struct CreateUserRequest {
+struct CreateUserRequest
+{
     char username[64];
     char email[128];
 };
 
-struct AddFunctionIRRequest {
+struct AddFunctionIRRequest
+{
     char function_code_hash[256];
     uint32_t bit_array_size;     // Nombre de bits dans le tableau
     uint8_t bit_array[];         // Tableau de bits flexible (Flexible Array Member)
 };
 
-struct GetFunctionIRRequest {
+struct GetFunctionIRRequest
+{
     char function_code_hash[256];
-    uint32_t bit_array_size; // Taille du tableau de bits
-    uint8_t bit_array[];     // Tableau de bits flexible
 };
 
-struct GetUserRequest {
+// Structure de réponse avec tableau de bits variable
+struct GetFunctionIRResponse {
+    bool success;                    // Indique si la fonction a été trouvée
+    uint32_t bit_array_size;        // Nombre de bits dans le tableau
+    char error_message[128];        // Message d'erreur si success = false
+    uint8_t bit_array[];            // Tableau de bits flexible
+};
+
+struct GetUserRequest
+{
     uint32_t user_id;
 };
 
-struct DeleteUserRequest {
+struct DeleteUserRequest
+{
     uint32_t user_id;
 };
 
 // Fonctions utilitaires
-inline uint32_t hash_route(const std::string& route) {
+inline uint32_t hash_route(const std::string& route)
+{
     std::hash<std::string> hasher;
     return hasher(route);
 }
 
-inline uint32_t generate_message_id() {
+inline uint32_t generate_message_id()
+{
     static uint32_t counter = 0;
     return ++counter;
 }

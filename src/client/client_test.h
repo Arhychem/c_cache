@@ -22,12 +22,24 @@ public:
     bool send_request(const std::string& route, const RequestType& request);
     bool send_variable_request(const std::string& route, const void* data, size_t data_size);
     bool add_function_ir(const std::string& function_hash, const uint8_t* bits, uint32_t num_bits);
-    bool get_function_ir(const std::string& function_hash, const uint8_t* bits, uint32_t num_bits);
+    // méthode pour requête avec réponse attendue
+    template<typename RequestType>
+    bool send_request_with_response(const std::string& route,
+        const RequestType& request,
+        uint32_t& message_id);
+
+    // Attendre et récupérer une réponse
+    bool wait_for_response(uint32_t message_id, void* response_buffer,
+        size_t buffer_size, size_t& actual_response_size);
+
 
     // Helpers spécifiques pour chaque type de requête
     bool create_user(const std::string& username, const std::string& email);
     bool get_user(uint32_t user_id);
     bool delete_user(uint32_t user_id);
+    // Helper spécifique pour GetFunctionIR
+    bool get_function_ir(const std::string& function_hash,
+        std::vector<uint8_t>& ir_bits);
 };
 
 // Implémentation du template dans le header
@@ -39,7 +51,7 @@ bool IPCClient::send_request(const std::string& route, const RequestType& reques
     // Attendre l'accès exclusif
     sem_wait(&shared_data->mutex);
 
-    // Vérifier que le buffer est libre
+    // Vérifier que le buffer est libre4
     if (shared_data->has_message) {
         sem_post(&shared_data->mutex);
         printf("Erreur: Buffer occupé, message non envoyé\n");
