@@ -16,8 +16,9 @@ private:
     void handle_create_user(const CreateUserRequest& request);
     void handle_get_user(const GetUserRequest& request);
     void handle_delete_user(const DeleteUserRequest& request);
-    void handle_add_function_ir(const char* data, size_t size);
+    void handle_add_function_ir_graph(const char* data, size_t size);
     void handle_get_function_ir(const GetFunctionIRRequest& request, uint32_t message_id);
+    void handle_get_function_ir_graph(const GetFunctionIRGraphRequest& request, uint32_t message_id);
 
     // Méthode pour envoyer une réponse
     bool send_response(uint32_t message_id, const void* response_data, size_t response_size);

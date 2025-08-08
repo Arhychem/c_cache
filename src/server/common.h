@@ -56,17 +56,38 @@ struct CreateUserRequest
     char email[128];
 };
 
-struct AddFunctionIRRequest
-{
+// Structure pour la sérialisation de SerializeTFGraph
+struct AddFunctionIRRequest {
     char function_code_hash[256];
-    uint32_t bit_array_size;     // Nombre de bits dans le tableau
-    uint8_t bit_array[];         // Tableau de bits flexible (Flexible Array Member)
+    uint32_t serialized_graph_size;  // Taille des données sérialisées
+    uint8_t serialized_graph[];      // Données sérialisées du graphe
 };
+
+// Structure pour la réponse
+struct AddFunctionIRResponse {
+    bool success;
+    char error_message[128];
+};
+
+// Structure de requête pour récupérer un graphique IR
+struct GetFunctionIRGraphRequest {
+    char function_code_hash[256];
+};
+
+// Structure de réponse avec graphique IR sérialisé
+struct GetFunctionIRGraphResponse {
+    bool success;                     // Indique si la fonction a été trouvée
+    uint32_t serialized_graph_size;   // Taille des données sérialisées
+    char error_message[128];          // Message d'erreur si success = false
+    uint8_t serialized_graph[];       // Graphique sérialisé (Flexible Array Member)
+};
+
 
 struct GetFunctionIRRequest
 {
     char function_code_hash[256];
 };
+
 
 // Structure de réponse avec tableau de bits variable
 struct GetFunctionIRResponse {

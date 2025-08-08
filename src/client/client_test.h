@@ -21,12 +21,14 @@ public:
     template <typename RequestType>
     bool send_request(const std::string& route, const RequestType& request);
     bool send_variable_request(const std::string& route, const void* data, size_t data_size);
-    bool add_function_ir(const std::string& function_hash, const uint8_t* bits, uint32_t num_bits);
-    // méthode pour requête avec réponse attendue
+    bool add_function_ir_graph(const std::string& function_hash,
+        const SerializeTFGraph& graph);    // méthode pour requête avec réponse attendue
     template<typename RequestType>
     bool send_request_with_response(const std::string& route,
         const RequestType& request,
         uint32_t& message_id);
+    bool get_function_ir_graph(const std::string& function_hash,
+        SerializeTFGraph& deserialized_graph);
 
     // Attendre et récupérer une réponse
     bool wait_for_response(uint32_t message_id, void* response_buffer,

@@ -108,34 +108,43 @@ bool IPCClient::send_variable_request(const std::string& route, const void* data
     return true;
 }
 
-bool IPCClient::add_function_ir(const std::string& function_hash, const uint8_t* bits, uint32_t num_bits)
-{
-    // Calculer le nombre d'octets nécessaires pour stocker num_bits
-    uint32_t num_bytes = (num_bits + 7) / 8;  // Arrondir vers le haut
+bool IPCClient::add_function_ir_graph(const std::string& function_hash,
+                                     const SerializeTFGraph& graph) {
+    // Sérialiser le graphique
+    std::vector<uint8_t> serialized_data;
+    try {
+        serialized_data = GraphSerializer::serialize_to_bytes(graph);
+    } catch (const std::exception& e) {
+        printf("Erreur de sérialisation: %s\n", e.what());
+        return false;
+    }
 
     // Calculer la taille totale de la structure
-    size_t total_struct_size = sizeof(AddFunctionIRRequest) + num_bytes;
+    size_t total_struct_size = sizeof(AddFunctionIRRequest) + serialized_data.size();
 
     // Allouer temporairement la structure
     uint8_t* buffer = new uint8_t[total_struct_size];
     AddFunctionIRRequest* request = (AddFunctionIRRequest*)buffer;
 
     // Remplir la structure
-    strncpy(request->function_code_hash, function_hash.c_str(), sizeof(request->function_code_hash) - 1);
-    request->function_code_hash[sizeof(request->function_code_hash) - 1] = '\0';
-    request->bit_array_size = num_bits;
+    strncpy(request->function_code_hash, function_hash.c_str(),
+            sizeof(request->function_code_hash)-1);
+    request->function_code_hash[sizeof(request->function_code_hash)-1] = '\0';
+    request->serialized_graph_size = static_cast<uint32_t>(serialized_data.size());
 
-    // Copier les bits
-    memcpy(request->bit_array, bits, num_bytes);
+    // Copier les données sérialisées
+    memcpy(request->serialized_graph, serialized_data.data(), serialized_data.size());
 
     // Envoyer la requête
-    bool result = send_variable_request("function/add_ir", request, total_struct_size);
+    bool result = send_variable_request("function/add_ir_graph", request, total_struct_size);
 
     // Libérer la mémoire temporaire
     delete[] buffer;
 
+    printf("Graphique sérialisé envoyé: %zu octets\n", serialized_data.size());
     return result;
 }
+
 
 template<typename RequestType>
 bool IPCClient::send_request_with_response(const std::string& route,
@@ -246,4 +255,61 @@ bool IPCClient::get_function_ir(const std::string& function_hash,
         response->bit_array_size, num_bytes);
 
     return true;
+}
+bool IPCClient::get_function_ir_graph(const std::string& function_hash,
+                                     SerializeTFGraph& deserialized_graph) {
+    GetFunctionIRGraphRequest request;
+    strncpy(request.function_code_hash, function_hash.c_str(),
+            sizeof(request.function_code_hash)-1);
+    request.function_code_hash[sizeof(request.function_code_hash)-1] = '\0';
+
+    uint32_t message_id;
+    if (!send_request_with_response("function/get_ir_graph", request, message_id)) {
+        printf("Erreur: impossible d'envoyer la requête\n");
+        return false;
+    }
+
+    // Buffer pour recevoir la réponse
+    uint8_t response_buffer[MAX_MESSAGE_SIZE];
+    size_t response_size;
+
+    if (!wait_for_response(message_id, response_buffer,
+                          sizeof(response_buffer), response_size)) {
+        printf("Erreur: timeout ou problème de réception de réponse\n");
+        return false;
+    }
+
+    // Parser la réponse
+    const GetFunctionIRGraphResponse* response =
+        (const GetFunctionIRGraphResponse*)response_buffer;
+
+    if (!response->success) {
+        printf("Erreur serveur: %s\n", response->error_message);
+        return false;
+    }
+
+    // Vérifier la cohérence des tailles
+    size_t expected_size = sizeof(GetFunctionIRGraphResponse) + response->serialized_graph_size;
+    if (response_size != expected_size) {
+        printf("Erreur: taille de réponse incohérente\n");
+        return false;
+    }
+
+    // Désérialiser le graphique
+    try {
+        deserialized_graph = GraphSerializer::deserialize_from_bytes(
+            response->serialized_graph, response->serialized_graph_size);
+
+        printf("Graphique IR récupéré avec succès:\n");
+        printf("- Nombre de nœuds: %zu\n", deserialized_graph.graph_nodes.size());
+        printf("- Node start ID: %u\n", deserialized_graph.node_start_id);
+        printf("- Node end ID: %u\n", deserialized_graph.node_end_id);
+        printf("- Has SIMD: %s\n", deserialized_graph.has_simd ? "true" : "false");
+
+        return true;
+
+    } catch (const std::exception& e) {
+        printf("Erreur de désérialisation: %s\n", e.what());
+        return false;
+    }
 }

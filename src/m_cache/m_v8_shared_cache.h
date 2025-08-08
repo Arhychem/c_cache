@@ -1,77 +1,90 @@
 #ifndef M_V8_SHARED_CACHE_H_
 #define M_V8_SHARED_CACHE_H_
 
-#include <mutex>
 #include <string>
+#include <mutex>
+#include <cstdint>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstring>
 
 #define CACHE_FILE_PATH "/tmp/v8_code_cache"
-#define CACHE_FILE_SIZE (1024 * 1024 * 100)  // 100 Mo
-#define CACHE_MAX_ENTRIES 1024  // Nombre maximum d'entrées dans le cache
+#define CACHE_FILE_SIZE (1024 * 1024 * 100) // 100 Mo
+#define CACHE_MAX_ENTRIES 1024
 
-namespace v8 {
 namespace m_cache {
 
-enum CacheType { MAGLEV, TURBOFAN };
-struct CacheEntryHeader {
-  char function_name[256]; //Hash of the function name
-  char key[256]; // Hash of the section source code (e.g., a loop in the function body)
-  uint32_t length;
-  uint32_t offset;
-  CacheType type;
-};
+    struct CacheEntryHeader
+    {
+        char function_name[256];    // Hash of the function name
+        char key[256];             // Hash of the section source code
+        uint32_t length;           // Taille des données
+        uint32_t offset;           // Offset dans le fichier mmap
+        bool is_used;              // Indique si l'entrée est utilisée
+        uint32_t checksum;         // Checksum pour vérifier l'intégrité
+    };
 
-class SharedCache {
- public:
-  // Accès singleton
-  static SharedCache& Instance() {
-    static SharedCache* instance = new SharedCache();
-    instance->EnsureInitialized();
-    return *instance;
-  }
+    struct CacheHeader
+    {
+        uint32_t magic_number;     // Pour vérifier la validité du cache
+        uint32_t version;          // Version du format de cache
+        uint32_t entry_count;      // Nombre d'entrées utilisées
+        uint32_t next_offset;      // Prochain offset libre
+        uint8_t padding[16];       // Padding pour alignement
+    };
 
-  // Initialise le mmap (à appeler avant toute opération)
+    class SharedCache
+    {
+    public:
+        static const uint32_t CACHE_MAGIC = 0xC4C4E001;
+        static const uint32_t CACHE_VERSION = 1;
 
-  // Ajoute une entrée dans le cache (clé, buffer, taille)
-  void Put(const std::string& key, const uint8_t* data, uint32_t length);
+        static SharedCache& Instance()
+        {
+            static SharedCache instance;
+            return instance;
+        }
 
-  // Récupère une entrée du cache (remplit buffer et length si trouvé)
-  // Retourne true si trouvé, false sinon
-  bool Get(const std::string& key, const uint8_t** data,
-           uint32_t& length) const;
+        bool Put(const std::string& key, const uint8_t* data, uint32_t length);
+        bool Get(const std::string& key, const uint8_t** data, uint32_t& length) const;
+        bool Remove(const std::string& key);
+        void Clear();
 
-  // Supprime une entrée du cache
-  void Remove(const std::string& key);
+        uint32_t GetEntryCount() const;
+        uint32_t GetUsedSpace() const;
+        uint32_t GetFreeSpace() const;
+        bool IsValid() const;
 
-  // Vide tout le cache
-  void Clear();
+    private:
+        SharedCache();
+        ~SharedCache();
+        SharedCache(const SharedCache&) = delete;
+        SharedCache& operator=(const SharedCache&) = delete;
 
-  CacheEntryHeader* EntryAt(uint32_t i) const;
-  int FindEntry(const std::string& key) const;
+        // CHANGEMENT IMPORTANT : Déclarer EnsureInitialized comme const
+        void EnsureInitialized() const;
+        bool InitMmap() const;
+        void InitializeCache() const;
 
- private:
-  void EnsureInitialized() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!initialized_) {
-      InitMmap();
-      initialized_ = true;
-    }
-  }
+        CacheHeader* GetHeader() const;
+        CacheEntryHeader* GetEntries() const;
+        CacheEntryHeader* EntryAt(uint32_t index) const;
+        uint8_t* GetDataArea() const;
 
-  void InitMmap();
-  bool initialized_ = false;
-  SharedCache() = default;
-  ~SharedCache();
-  SharedCache(const SharedCache&) = delete;
-  SharedCache& operator=(const SharedCache&) = delete;
-  mutable std::mutex mutex_;
-  void* mmap_base_ = nullptr;
-  uint32_t next_offset_ = 0;
-  uint32_t entry_count_ = 0;
-  // Pas de std::map : tout est dans le mmap
-  int FindFreeEntry() const;
-};
+        int FindEntry(const std::string& key) const;
+        int FindFreeEntry() const;
+        uint32_t CalculateChecksum(const uint8_t* data, uint32_t length) const;
+        bool CompactCache() const;
 
-}  // namespace m_cache
-}  // namespace v8
+        // CHANGEMENT IMPORTANT : Ajouter mutable pour les membres modifiés dans les méthodes const
+        mutable std::mutex mutex_;
+        mutable void* mmap_base_ = nullptr;
+        mutable size_t mmap_size_ = 0;
+        mutable bool initialized_ = false;
+        mutable int fd_ = -1;
+    };
 
-#endif  // V8_SRC_M_CACHE_M_SHARED_CACHE_H_
+} // namespace m_cache
+
+#endif // M_V8_SHARED_CACHE_H_
