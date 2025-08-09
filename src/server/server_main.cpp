@@ -3,7 +3,7 @@
 
 IPCServer* server_instance = nullptr;
 
-void signal_handler(int signal) {
+void signal_handler(int) {
     if (server_instance) {
         printf("\nArrêt du serveur...\n");
         server_instance->stop();

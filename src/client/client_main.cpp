@@ -1,71 +1,83 @@
 #include "client_test.h"
 #include <iostream>
-#include <thread>
-#include <chrono>
+#include <signal.h>
+#include <unistd.h>
 
-int main()
-{
+bool running = true;
+
+void signal_handler(int) {
+    std::cout << "\nArrêt du client..." << std::endl;
+    running = false;
+}
+
+int main() {
+    // Gérer l'arrêt propre avec Ctrl+C
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+
+    std::cout << "=== CLIENT DE TEST IPC ===" << std::endl;
+
     IPCClient client;
 
-    if (!client.initialize()) {
-        fprintf(stderr, "Erreur: Impossible de se connecter au serveur\n");
-        fprintf(stderr, "Assurez-vous que le serveur est démarré\n");
+    if (!client.connect()) {
+        std::cerr << "Erreur: impossible de se connecter au serveur" << std::endl;
+        std::cerr << "Assurez-vous que le serveur est démarré" << std::endl;
         return 1;
     }
 
-    printf("=== CLIENT IPC CONNECTÉ ===\n\n");
+    std::cout << "Client connecté avec succès!" << std::endl;
+    std::cout << "Exécution des tests..." << std::endl;
 
-    // Exemples d'envoi de messages
-    printf("Envoi de requêtes de test...\n\n");
+    // Exécuter tous les tests
+    bool all_tests_passed = true;
 
-    // Créer un utilisateur
-    client.create_user("alice_doe", "alice@example.com");
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Récupérer un utilisateur
-    client.get_user(12345);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Créer un autre utilisateur
-    client.create_user("bob_smith", "bob@test.com");
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Supprimer un utilisateur
-    client.delete_user(98765);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Test de la nouvelle fonctionnalité avec tableau de bits
-    printf("Test de la fonction AddFunctionIR...\n");
-
-    // Créer un tableau de bits d'exemple
-    uint8_t sample_bits[] = { 0xAB, 0xCD, 0xEF, 0x12, 0x34, 0x56 };
-    uint32_t num_bits = 40; // 5 octets * 8 bits = 40 bits
-
-    client.add_function_ir("SHA256_HASH_OF_FUNCTION_CODE", sample_bits, num_bits);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Test avec un tableau plus petit
-    uint8_t small_bits[] = { 0xFF };
-    client.add_function_ir("SMALL_FUNCTION_HASH", small_bits, 8);
-
-    // Test de récupération d'IR
-    std::vector<uint8_t> ir_bits;
-
-    printf("Récupération IR pour fonction existante...\n");
-    if (client.get_function_ir("EXISTING_FUNCTION", ir_bits)) {
-        printf("IR récupéré avec succès! Premiers octets: ");
-        for (size_t i = 0; i < std::min(size_t(8), ir_bits.size()); i++) {
-            printf("%02X ", ir_bits[i]);
-        }
-        printf("\n");
+    // Test création utilisateur
+    if (!client.test_create_user()) {
+        std::cerr << "Échec du test de création d'utilisateur" << std::endl;
+        all_tests_passed = false;
     }
 
-    printf("\nRécupération IR pour fonction inexistante...\n");
-    if (!client.get_function_ir("NONEXISTENT_FUNCTION", ir_bits)) {
-        printf("Fonction non trouvée (comme attendu)\n");
+    // Test récupération utilisateur
+    if (!client.test_get_user()) {
+        std::cerr << "Échec du test de récupération d'utilisateur" << std::endl;
+        all_tests_passed = false;
     }
 
-    printf("\nToutes les requêtes ont été envoyées!\n");
+    // Test suppression utilisateur
+    if (!client.test_delete_user()) {
+        std::cerr << "Échec du test de suppression d'utilisateur" << std::endl;
+        all_tests_passed = false;
+    }
 
-    return 0;
+    // Test ajout fonction IR
+    if (!client.test_add_function_ir()) {
+        std::cerr << "Échec du test d'ajout de fonction IR" << std::endl;
+        all_tests_passed = false;
+    }
+
+    // Test récupération fonction IR
+    if (!client.test_get_function_ir()) {
+        std::cerr << "Échec du test de récupération de fonction IR" << std::endl;
+        all_tests_passed = false;
+    }
+
+    // Afficher le résultat
+    std::cout << "\n=== RÉSULTATS DES TESTS ===" << std::endl;
+    if (all_tests_passed) {
+        std::cout << "✓ Tous les tests ont réussi!" << std::endl;
+    } else {
+        std::cout << "✗ Certains tests ont échoué" << std::endl;
+    }
+
+    std::cout << "\nAppuyez sur Ctrl+C pour quitter ou attendez..." << std::endl;
+
+    // Maintenir le client en vie pour permettre d'autres tests
+    while (running) {
+        sleep(1);
+    }
+
+    client.disconnect();
+    std::cout << "Client fermé." << std::endl;
+
+    return all_tests_passed ? 0 : 1;
 }
