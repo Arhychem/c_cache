@@ -62,7 +62,6 @@ namespace m_cache {
         SharedCache(const SharedCache&) = delete;
         SharedCache& operator=(const SharedCache&) = delete;
 
-        // CHANGEMENT IMPORTANT : Déclarer EnsureInitialized comme const
         void EnsureInitialized() const;
         bool InitMmap() const;
         void InitializeCache() const;
@@ -77,7 +76,6 @@ namespace m_cache {
         uint32_t CalculateChecksum(const uint8_t* data, uint32_t length) const;
         bool CompactCache() const;
 
-        // CHANGEMENT IMPORTANT : Ajouter mutable pour les membres modifiés dans les méthodes const
         mutable std::mutex mutex_;
         mutable void* mmap_base_ = nullptr;
         mutable size_t mmap_size_ = 0;

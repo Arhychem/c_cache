@@ -6,7 +6,7 @@
 class IPCRouter
 {
 private:
-    std::unordered_map<uint32_t, std::function<void(const char*, size_t)>> routes;
+    std::unordered_map<std::string, std::function<void(const char*, size_t)>> routes;
 
 public:
     // Enregistrer une route avec sa fonction de traitement
@@ -14,7 +14,7 @@ public:
     void register_route(const std::string& route,
         std::function<void(const RequestType&)> handler)
     {
-        uint32_t route_hash = hash_route(route);
+        std::string route_hash = hash_route(route);
 
         routes[route_hash] = [handler](const char* data, size_t size) {
             if (size >= sizeof(RequestType)) {
@@ -26,22 +26,23 @@ public:
             }
             };
 
-        printf("Route enregistrée: %s (hash: %u)\n", route.c_str(), route_hash);
+        printf("Route enregistrée: %s (hash: %s)\n", route.c_str(), route_hash.c_str());
     }
 
     // Nouvelle méthode pour tailles variables
     void register_variable_route(const std::string& route,
         std::function<void(const char*, size_t)> handler)
     {
-        uint32_t route_hash = hash_route(route);
+        std::string route_hash = hash_route(route);
         routes[route_hash] = handler;
-        printf("Route variable enregistrée: %s (hash: %u)\n", route.c_str(), route_hash);
+        printf("Route variable enregistrée: %s (hash: %s)\n", route.c_str(), route_hash.c_str());
     }
 
     // Traiter un message reçu
     void dispatch_message(const IPCMessage* message)
     {
-        auto it = routes.find(message->route_hash);
+        std::string route_hash(message->route_hash);
+        auto it = routes.find(route_hash);
         if (it != routes.end()) {
             it->second(message->payload, message->payload_size);
         }
@@ -53,7 +54,7 @@ public:
 private:
     void handle_unknown_route(const IPCMessage* message)
     {
-        printf("Route inconnue: hash %u\n", message->route_hash);
+        printf("Route inconnue: hash %s\n", message->route_hash);
     }
 };
 

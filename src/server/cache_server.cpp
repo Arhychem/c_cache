@@ -140,10 +140,10 @@ void IPCServer::handle_add_function_ir_graph(const char* data, size_t size)
         printf("Erreur: données insuffisantes pour AddFunctionIRRequest\n");
         return;
     }
+    printf("=== AJOUT GRAPHIQUE IR AVEC CACHE ===\n");
 
     const AddFunctionIRRequest* request = (const AddFunctionIRRequest*)data;
 
-    printf("=== AJOUT GRAPHIQUE IR AVEC CACHE ===\n");
     printf("Hash de la fonction: %s\n", request->function_code_hash);
     printf("Taille des données sérialisées: %u octets\n", request->serialized_graph_size);
 
@@ -229,7 +229,8 @@ void IPCServer::handle_get_function_ir(const GetFunctionIRRequest& request,
 }
 
 void IPCServer::handle_get_function_ir_graph(const GetFunctionIRGraphRequest& request,
-                                           uint32_t message_id) {
+    uint32_t message_id)
+{
     printf("=== RÉCUPÉRATION GRAPHIQUE IR ===\n");
     printf("Hash de la fonction demandée: %s\n", request.function_code_hash);
 
@@ -259,13 +260,15 @@ void IPCServer::handle_get_function_ir_graph(const GetFunctionIRGraphRequest& re
         // Envoyer la réponse
         if (send_response(message_id, response, response_size)) {
             printf("Graphique IR envoyé avec succès au client\n");
-        } else {
+        }
+        else {
             printf("Erreur: impossible d'envoyer la réponse\n");
         }
 
         delete[] buffer;
 
-    } else {
+    }
+    else {
         // Fonction non trouvée dans le cache
         printf("Fonction non trouvée dans le cache\n");
 
@@ -315,14 +318,20 @@ void IPCServer::run()
         // Attendre qu'un message arrive
         sem_wait(&shared_data->data_ready);
 
+        std::cout << "Running..." << std::endl;
+
         if (!running) break;
+        printf("SERVEUR: has_message lu comme %s, adresse: %p\n",
+            shared_data->has_message ? "true" : "false",
+            &shared_data->has_message);
 
         if (shared_data->has_message) {
+            std::cout << "Message reçu, traitement en cours..." << std::endl;
             // Traiter le message
             IPCMessage* message = (IPCMessage*)shared_data->message;
             std::cout << "Message reçu: ID " << message->message_id
-                      << ", Route hash " << message->route_hash
-                      << ", Taille " << message->payload_size << std::endl;
+                << ", Route hash " << message->route_hash
+                << ", Taille " << message->payload_size << std::endl;
             router.dispatch_message(message);
 
             // Marquer le message comme traité

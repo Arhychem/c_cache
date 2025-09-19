@@ -52,7 +52,7 @@ SharedData* IPCClient::open_shared_memory()
     return data;
 }
 
-bool IPCClient::send_message(const void* message_data, size_t message_size, uint32_t route_hash)
+bool IPCClient::send_message(const void* message_data, size_t message_size, const std::string& route_hash)
 {
     if (!connected || !shared_data) {
         std::cerr << "Client non connecté" << std::endl;
@@ -70,7 +70,8 @@ bool IPCClient::send_message(const void* message_data, size_t message_size, uint
     // Construire le message IPC
     IPCMessage* ipc_msg = (IPCMessage*)shared_data->message;
     ipc_msg->message_id = generate_message_id();
-    ipc_msg->route_hash = route_hash;
+    strncpy(ipc_msg->route_hash, route_hash.c_str(), sizeof(ipc_msg->route_hash) - 1);
+    ipc_msg->route_hash[sizeof(ipc_msg->route_hash) - 1] = '\0';
     ipc_msg->payload_size = message_size;
 
     // Copier les données
@@ -123,7 +124,7 @@ bool IPCClient::test_create_user()
     strncpy(request.username, "john_doe", sizeof(request.username) - 1);
     strncpy(request.email, "john@example.com", sizeof(request.email) - 1);
 
-    uint32_t route_hash = hash_route("user/create");
+    std::string route_hash = hash_route("user/create");
 
     if (send_message(&request, sizeof(request), route_hash)) {
         std::cout << "Requête de création d'utilisateur envoyée" << std::endl;
@@ -141,7 +142,7 @@ bool IPCClient::test_get_user()
     GetUserRequest request;
     request.user_id = 123;
 
-    uint32_t route_hash = hash_route("user/get");
+    std::string route_hash = hash_route("user/get");
 
     if (send_message(&request, sizeof(request), route_hash)) {
         std::cout << "Requête de récupération d'utilisateur envoyée" << std::endl;
@@ -159,7 +160,7 @@ bool IPCClient::test_delete_user()
     DeleteUserRequest request;
     request.user_id = 456;
 
-    uint32_t route_hash = hash_route("user/delete");
+    std::string route_hash = hash_route("user/delete");
 
     if (send_message(&request, sizeof(request), route_hash)) {
         std::cout << "Requête de suppression d'utilisateur envoyée" << std::endl;
@@ -189,7 +190,7 @@ bool IPCClient::test_add_function_ir()
     // Copier les données
     memcpy(request->serialized_graph, test_data, data_size);
 
-    uint32_t route_hash = hash_route("function/add_ir_graph");
+    std::string route_hash = hash_route("function/add_ir_graph");
 
     bool result = send_message(buffer, total_size, route_hash);
     delete[] buffer;
@@ -210,7 +211,7 @@ bool IPCClient::test_get_function_ir()
     GetFunctionIRRequest request;
     strncpy(request.function_code_hash, "EXISTING_FUNCTION", sizeof(request.function_code_hash) - 1);
 
-    uint32_t route_hash = hash_route("function/get_ir");
+    std::string route_hash = hash_route("function/get_ir");
 
     if (send_message(&request, sizeof(request), route_hash)) {
         std::cout << "Requête de récupération de fonction IR envoyée" << std::endl;

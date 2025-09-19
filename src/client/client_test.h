@@ -24,7 +24,7 @@ public:
     bool test_get_function_ir();
 
     // Méthodes utilitaires
-    bool send_message(const void* message_data, size_t message_size, uint32_t route_hash);
+    bool send_message(const void* message_data, size_t message_size, const std::string& route_hash);
     bool wait_for_response(void* response_buffer, size_t& response_size, uint32_t expected_message_id);
 
 private:

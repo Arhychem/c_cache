@@ -12,9 +12,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <unistd.h>
+#include "../m_cache/picosha2.h"
 
 // Taille maximale pour un message
-#define MAX_MESSAGE_SIZE 4096
+#define MAX_MESSAGE_SIZE 4096*5
 #define SHARED_MEM_NAME "/ipc_router_shared"
 
 // Structure de données partagée
@@ -44,7 +45,7 @@ struct SharedData
 struct IPCMessage
 {
     uint32_t message_id;     // ID unique du type de message
-    uint32_t route_hash;     // Hash de la route
+    char route_hash[256];     // Hash de la route
     uint32_t payload_size;   // Taille des données utiles
     char payload[];          // Données variables
 };
@@ -108,10 +109,9 @@ struct DeleteUserRequest
 };
 
 // Fonctions utilitaires
-inline uint32_t hash_route(const std::string& route)
+inline std::string hash_route(const std::string& route)
 {
-    std::hash<std::string> hasher;
-    return hasher(route);
+    return picosha2::hash256_hex_string(route);
 }
 
 inline uint32_t generate_message_id()
