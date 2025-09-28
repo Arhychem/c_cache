@@ -83,6 +83,31 @@ struct GetFunctionIRGraphResponse {
     uint8_t serialized_graph[];       // Graphique sérialisé (Flexible Array Member)
 };
 
+// Structure pour sauvegarder le bytecode
+struct SaveBytecodeRequest {
+    char function_code_hash[256];     // Hash de la fonction
+    uint32_t bytecode_size;          // Taille du bytecode
+    uint8_t bytecode[];              // Bytecode sérialisé (Flexible Array Member)
+};
+
+// Structure de réponse pour la sauvegarde du bytecode
+struct SaveBytecodeResponse {
+    bool success;                    // Indique si la sauvegarde a réussi
+    char error_message[128];         // Message d'erreur si success = false
+};
+
+// Structure pour récupérer le bytecode
+struct GetBytecodeRequest {
+    char function_code_hash[256];    // Hash de la fonction
+};
+
+// Structure de réponse avec bytecode
+struct GetBytecodeResponse {
+    bool success;                    // Indique si le bytecode a été trouvé
+    uint32_t bytecode_size;         // Taille du bytecode
+    char error_message[128];        // Message d'erreur si success = false
+    uint8_t bytecode[];             // Bytecode sérialisé (Flexible Array Member)
+};
 
 struct GetFunctionIRRequest
 {

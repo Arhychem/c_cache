@@ -110,6 +110,19 @@ void IPCServer::initialize_routes()
             uint32_t message_id = shared_data->current_message_id;
             handle_get_function_ir_graph(req, message_id);
         });
+
+    // Routes pour la gestion du bytecode
+    router.register_variable_route("bytecode/save",
+        [this](const char* data, size_t size) {
+            std::cout << "Handling variable route for bytecode/save" << std::endl;
+            handle_save_bytecode(data, size);
+        });
+
+    router.register_route<GetBytecodeRequest>("bytecode/get",
+        [this](const GetBytecodeRequest& req) {
+            uint32_t message_id = shared_data->current_message_id;
+            handle_get_bytecode(req, message_id);
+        });
 }
 
 void IPCServer::handle_create_user(const CreateUserRequest& request)
@@ -343,6 +356,133 @@ void IPCServer::run()
     }
 
     printf("Serveur arrêté.\n");
+}
+
+void IPCServer::handle_save_bytecode(const char* data, size_t size)
+{
+    if (size < sizeof(SaveBytecodeRequest)) {
+        printf("Erreur: données insuffisantes pour SaveBytecodeRequest\n");
+        return;
+    }
+    
+    printf("=== SAUVEGARDE BYTECODE ===\n");
+    
+    const SaveBytecodeRequest* request = (const SaveBytecodeRequest*)data;
+    
+    printf("Hash de la fonction: %s\n", request->function_code_hash);
+    printf("Taille du bytecode: %u octets\n", request->bytecode_size);
+    
+    // Vérifier la cohérence des tailles
+    size_t expected_total_size = sizeof(SaveBytecodeRequest) + request->bytecode_size;
+    if (size != expected_total_size) {
+        printf("Erreur: taille des données incorrecte (reçu: %zu, attendu: %zu)\n", size, expected_total_size);
+        
+        SaveBytecodeResponse response;
+        response.success = false;
+        strcpy(response.error_message, "Taille des données incorrecte");
+        
+        uint32_t message_id = shared_data->current_message_id;
+        send_response(message_id, &response, sizeof(response));
+        return;
+    }
+    
+    try {
+        // Stocker le bytecode dans le cache partagé avec un préfixe pour le distinguer des graphiques IR
+        std::string bytecode_key = "bytecode_" + std::string(request->function_code_hash);
+        
+        m_cache::SharedCache& cache = m_cache::SharedCache::Instance();
+        
+        if (cache.Put(bytecode_key, request->bytecode, request->bytecode_size)) {
+            printf("Bytecode stocké dans le cache avec succès!\n");
+            printf("- Entrées dans le cache: %u\n", cache.GetEntryCount());
+            printf("- Espace utilisé: %u octets\n", cache.GetUsedSpace());
+            
+            SaveBytecodeResponse response;
+            response.success = true;
+            strcpy(response.error_message, "");
+            
+            uint32_t message_id = shared_data->current_message_id;
+            send_response(message_id, &response, sizeof(response));
+        }
+        else {
+            printf("Erreur: impossible de stocker le bytecode dans le cache\n");
+            
+            SaveBytecodeResponse response;
+            response.success = false;
+            strcpy(response.error_message, "Impossible de stocker dans le cache");
+            
+            uint32_t message_id = shared_data->current_message_id;
+            send_response(message_id, &response, sizeof(response));
+        }
+    }
+    catch (const std::exception& e) {
+        printf("Erreur lors de la sauvegarde du bytecode: %s\n", e.what());
+        
+        SaveBytecodeResponse response;
+        response.success = false;
+        snprintf(response.error_message, sizeof(response.error_message), 
+                 "Erreur interne: %s", e.what());
+        
+        uint32_t message_id = shared_data->current_message_id;
+        send_response(message_id, &response, sizeof(response));
+    }
+    
+    printf("\n");
+}
+
+void IPCServer::handle_get_bytecode(const GetBytecodeRequest& request, uint32_t message_id)
+{
+    printf("=== RÉCUPÉRATION BYTECODE ===\n");
+    printf("Hash de la fonction demandée: %s\n", request.function_code_hash);
+    
+    // Rechercher dans le cache partagé avec le préfixe bytecode
+    std::string bytecode_key = "bytecode_" + std::string(request.function_code_hash);
+    
+    m_cache::SharedCache& cache = m_cache::SharedCache::Instance();
+    
+    const uint8_t* cached_data = nullptr;
+    uint32_t cached_size = 0;
+    
+    if (cache.Get(bytecode_key, &cached_data, cached_size)) {
+        printf("Bytecode trouvé dans le cache (%u octets)\n", cached_size);
+        
+        // Créer la réponse avec les données du cache
+        size_t response_size = sizeof(GetBytecodeResponse) + cached_size;
+        
+        // Allouer temporairement la réponse
+        uint8_t* buffer = new uint8_t[response_size];
+        GetBytecodeResponse* response = (GetBytecodeResponse*)buffer;
+        
+        response->success = true;
+        response->bytecode_size = cached_size;
+        strcpy(response->error_message, "");
+        
+        // Copier les données du bytecode depuis le cache
+        memcpy(response->bytecode, cached_data, cached_size);
+        
+        // Envoyer la réponse
+        if (send_response(message_id, response, response_size)) {
+            printf("Bytecode envoyé avec succès au client\n");
+        }
+        else {
+            printf("Erreur: impossible d'envoyer la réponse\n");
+        }
+        
+        delete[] buffer;
+    }
+    else {
+        // Bytecode non trouvé dans le cache
+        printf("Bytecode non trouvé dans le cache\n");
+        
+        GetBytecodeResponse response;
+        response.success = false;
+        response.bytecode_size = 0;
+        strcpy(response.error_message, "Bytecode non trouvé dans le cache");
+        
+        send_response(message_id, &response, sizeof(response));
+    }
+    
+    printf("\n");
 }
 
 void IPCServer::stop()
